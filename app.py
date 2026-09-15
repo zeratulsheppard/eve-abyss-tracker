@@ -23,6 +23,8 @@ from abyss_data import (
     ABYSS_REGION_IDS,
     DEFAULT_AMMO_NAMES,
     FILAMENT_NAMES,
+    LOOT_NAME_CONTAINS,
+    LOOT_NAME_SUFFIXES,
     TRIG_LOOT_NAMES,
 )
 
@@ -355,13 +357,18 @@ def load_abyss_systems():
     app.logger.info("abyss systems (fresh): %d", len(ABYSS_SYSTEM_IDS))
 
 
-def classify(type_id):
+def classify(type_id, type_name=None):
     if type_id in LOOT_TYPE_IDS:
         return "loot"
     if type_id in FILAMENT_TYPE_IDS:
         return "filament"
     if type_id in AMMO_TYPE_IDS:
         return "ammo"
+    if type_name:
+        if any(type_name.endswith(s) for s in LOOT_NAME_SUFFIXES):
+            return "loot"
+        if any(s in type_name for s in LOOT_NAME_CONTAINS):
+            return "loot"
     return "other"
 
 
@@ -469,16 +476,16 @@ def _fetch_and_store_transactions(char_id, token):
             type_id = int(row["type_id"])
             ts = int(datetime.strptime(row["date"], "%Y-%m-%dT%H:%M:%SZ")
                      .replace(tzinfo=timezone.utc).timestamp())
+            type_name = cached_names.get(type_id)
             conn.execute(
                 "INSERT OR IGNORE INTO transactions(transaction_id, date, type_id, "
                 "type_name, quantity, unit_price, is_buy, auto_category) "
                 "VALUES(?,?,?,?,?,?,?,?)",
                 (
-                    int(row["transaction_id"]), ts, type_id,
-                    cached_names.get(type_id),
+                    int(row["transaction_id"]), ts, type_id, type_name,
                     int(row["quantity"]), float(row["unit_price"]),
                     1 if row.get("is_buy") else 0,
-                    classify(type_id),
+                    classify(type_id, type_name),
                 ),
             )
         conn.commit()
@@ -708,12 +715,12 @@ def api_reclassify():
     conn = db_direct()
     try:
         rows = conn.execute(
-            "SELECT transaction_id, type_id FROM transactions"
+            "SELECT transaction_id, type_id, type_name FROM transactions"
         ).fetchall()
         for r in rows:
             conn.execute(
                 "UPDATE transactions SET auto_category=? WHERE transaction_id=?",
-                (classify(int(r["type_id"])), int(r["transaction_id"])),
+                (classify(int(r["type_id"]), r["type_name"]), int(r["transaction_id"])),
             )
         conn.commit()
     finally:

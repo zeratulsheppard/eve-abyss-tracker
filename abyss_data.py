@@ -29,6 +29,9 @@ FILAMENT_NAMES = [
     for weather in FILAMENT_WEATHERS
 ]
 
+LOOT_NAME_SUFFIXES = ("Mutaplasmid",)
+LOOT_NAME_CONTAINS = ("Isogen-5",)
+
 DEFAULT_AMMO_NAMES = [
     "Meson Exotic Plasma S",
     "Baryon Exotic Plasma S",
