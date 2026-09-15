@@ -9,15 +9,13 @@
 {% else %}
   <h1>Dashboard <span style="font-size: 12px; opacity: 0.5;">({{ since_label }})</span></h1>
 
-  {% if stats.current_run %}
-    <div class="card" style="border-color: var(--accent); margin-bottom: 20px;">
-      <div class="label"><span class="live-dot"></span>In abyss</div>
-      <div class="value accent">{{ stats.current_run.system_name or "Abyssal Pocket" }}</div>
-      <div class="sub" id="live-elapsed" data-started="{{ stats.current_run.started_at }}">
-        {{ (stats.current_run.elapsed_s // 60) }}m {{ (stats.current_run.elapsed_s % 60) }}s elapsed
-      </div>
+  <div id="current-run-card" class="card" style="border-color: var(--accent); margin-bottom: 20px; {% if not stats.current_run %}display:none;{% endif %}">
+    <div class="label"><span class="live-dot"></span>In abyss</div>
+    <div class="value accent" id="current-run-system">{{ stats.current_run.system_name if stats.current_run else "" }}</div>
+    <div class="sub" id="live-elapsed" data-started="{{ stats.current_run.started_at if stats.current_run else 0 }}">
+      {% if stats.current_run %}{{ (stats.current_run.elapsed_s // 60) }}m {{ (stats.current_run.elapsed_s % 60) }}s elapsed{% endif %}
     </div>
-  {% endif %}
+  </div>
 
   <div class="filter-bar">
     <span>Window:</span>
@@ -101,6 +99,18 @@ async function loadStats(window) {
   set('isk_per_hr', fmt(s.isk_per_hr) + ' ISK/hr');
   const roi = s.total_cost > 0 ? (s.loot_revenue / s.total_cost * 100) : 0;
   set('roi', fmt(roi, 1) + '%');
+
+  const card = document.getElementById('current-run-card');
+  const sysEl = document.getElementById('current-run-system');
+  const elapsedEl = document.getElementById('live-elapsed');
+  if (s.current_run) {
+    card.style.display = '';
+    sysEl.textContent = s.current_run.system_name || 'Abyssal Pocket';
+    elapsedEl.dataset.started = s.current_run.started_at;
+  } else {
+    card.style.display = 'none';
+    elapsedEl.dataset.started = 0;
+  }
 }
 document.getElementById('window-select').addEventListener('change', e => loadStats(e.target.value));
 
@@ -111,15 +121,19 @@ async function reclassifyAll() {
   location.reload();
 }
 
-// Live timer for in-abyss elapsed
-const el = document.getElementById('live-elapsed');
-if (el) {
-  const started = parseInt(el.dataset.started, 10);
-  setInterval(() => {
+// Live timer for in-abyss elapsed (reads the current data-started each tick so it
+// stays in sync with poll updates and blanks out when a run ends)
+setInterval(() => {
+  const el = document.getElementById('live-elapsed');
+  if (!el) return;
+  const started = parseInt(el.dataset.started, 10) || 0;
+  if (started > 0) {
     const s = Math.floor(Date.now() / 1000) - started;
     el.textContent = humanMS(s) + ' elapsed';
-  }, 1000);
-}
+  } else {
+    el.textContent = '';
+  }
+}, 1000);
 
 // Poll dashboard every 15s to catch new runs/txns
 setInterval(() => loadStats(document.getElementById('window-select').value), 15000);
