@@ -1,0 +1,6 @@
+{
+  "eve_client_id": "your-client-id-here",
+  "eve_client_secret": "your-secret-here",
+  "callback_url": "http://10.0.0.33:5051/sso/callback",
+  "extra_ammo_type_ids": []
+}

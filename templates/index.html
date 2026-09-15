@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - Abyss Tracker{% endblock %}
+{% block content %}
+
+{% if not logged_in %}
+  <h1>Abyssal Deadspace Tracker</h1>
+  <p>Log in with EVE SSO to start tracking your abyssal runs, loot revenue, and ISK/hr.</p>
+  <p><a class="btn" href="/sso/login">Log in with EVE Online</a></p>
+{% else %}
+  <h1>Dashboard <span style="font-size: 12px; opacity: 0.5;">({{ since_label }})</span></h1>
+
+  {% if stats.current_run %}
+    <div class="card" style="border-color: var(--accent); margin-bottom: 20px;">
+      <div class="label"><span class="live-dot"></span>In abyss</div>
+      <div class="value accent">{{ stats.current_run.system_name or "Abyssal Pocket" }}</div>
+      <div class="sub" id="live-elapsed" data-started="{{ stats.current_run.started_at }}">
+        {{ (stats.current_run.elapsed_s // 60) }}m {{ (stats.current_run.elapsed_s % 60) }}s elapsed
+      </div>
+    </div>
+  {% endif %}
+
+  <div class="filter-bar">
+    <span>Window:</span>
+    <select id="window-select">
+      <option value="all" selected>All time</option>
+      <option value="7d">Last 7 days</option>
+      <option value="30d">Last 30 days</option>
+      <option value="90d">Last 90 days</option>
+    </select>
+    <button onclick="reclassifyAll()">Re-run auto classify</button>
+  </div>
+
+  <div class="grid" id="stats-grid">
+    <div class="card">
+      <div class="label">Runs</div>
+      <div class="value" data-k="runs">{{ stats.runs }}</div>
+    </div>
+    <div class="card">
+      <div class="label">Total time in abyss</div>
+      <div class="value" data-k="total_time">{{ (stats.total_time_s // 3600) }}h {{ ((stats.total_time_s % 3600) // 60) }}m</div>
+    </div>
+    <div class="card">
+      <div class="label">Avg run</div>
+      <div class="value" data-k="avg_run">{{ (stats.avg_run_s // 60) }}m {{ (stats.avg_run_s % 60) }}s</div>
+    </div>
+    <div class="card">
+      <div class="label">Loot revenue</div>
+      <div class="value good" data-k="loot_revenue">{{ "{:,.0f}".format(stats.loot_revenue) }} ISK</div>
+    </div>
+    <div class="card">
+      <div class="label">Restock cost</div>
+      <div class="value bad" data-k="restock_cost">{{ "{:,.0f}".format(stats.restock_cost) }} ISK</div>
+      <div class="sub">filament {{ "{:,.0f}".format(stats.filament_cost) }} · ammo {{ "{:,.0f}".format(stats.ammo_cost) }}</div>
+    </div>
+    <div class="card">
+      <div class="label">Net profit</div>
+      <div class="value {% if stats.net_profit >= 0 %}good{% else %}bad{% endif %}" data-k="net_profit">
+        {{ "{:,.0f}".format(stats.net_profit) }} ISK
+      </div>
+    </div>
+    <div class="card">
+      <div class="label">ISK / hour</div>
+      <div class="value accent" data-k="isk_per_hr">{{ "{:,.0f}".format(stats.isk_per_hr) }} ISK/hr</div>
+    </div>
+    <div class="card">
+      <div class="label">ROI</div>
+      {% set roi = (stats.loot_revenue / stats.restock_cost * 100) if stats.restock_cost > 0 else 0 %}
+      <div class="value" data-k="roi">{{ "{:,.1f}".format(roi) }}%</div>
+    </div>
+  </div>
+
+<script>
+function fmt(n, digits) {
+  digits = digits || 0;
+  return n.toLocaleString('en-US', { minimumFractionDigits: digits, maximumFractionDigits: digits });
+}
+function humanTime(s) {
+  var h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60);
+  return h + 'h ' + m + 'm';
+}
+function humanMS(s) {
+  var m = Math.floor(s / 60), sec = s % 60;
+  return m + 'm ' + sec + 's';
+}
+async function loadStats(window) {
+  const r = await fetch('/api/stats?window=' + window);
+  const s = await r.json();
+  const set = (k, v) => { const el = document.querySelector('[data-k="'+k+'"]'); if (el) el.textContent = v; };
+  set('runs', s.runs);
+  set('total_time', humanTime(s.total_time_s));
+  set('avg_run', humanMS(s.avg_run_s));
+  set('loot_revenue', fmt(s.loot_revenue) + ' ISK');
+  set('restock_cost', fmt(s.restock_cost) + ' ISK');
+  set('net_profit', fmt(s.net_profit) + ' ISK');
+  set('isk_per_hr', fmt(s.isk_per_hr) + ' ISK/hr');
+  const roi = s.restock_cost > 0 ? (s.loot_revenue / s.restock_cost * 100) : 0;
+  set('roi', fmt(roi, 1) + '%');
+}
+document.getElementById('window-select').addEventListener('change', e => loadStats(e.target.value));
+
+async function reclassifyAll() {
+  const r = await fetch('/api/reclassify', { method: 'POST' });
+  const j = await r.json();
+  alert('Reclassified ' + j.count + ' transactions.');
+  location.reload();
+}
+
+// Live timer for in-abyss elapsed
+const el = document.getElementById('live-elapsed');
+if (el) {
+  const started = parseInt(el.dataset.started, 10);
+  setInterval(() => {
+    const s = Math.floor(Date.now() / 1000) - started;
+    el.textContent = humanMS(s) + ' elapsed';
+  }, 1000);
+}
+
+// Poll dashboard every 15s to catch new runs/txns
+setInterval(() => loadStats(document.getElementById('window-select').value), 15000);
+</script>
+
+{% endif %}
+{% endblock %}

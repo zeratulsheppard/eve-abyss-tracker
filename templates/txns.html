@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Transactions - Abyss Tracker{% endblock %}
+{% block content %}
+<h1>Transactions</h1>
+
+<div class="filter-bar">
+  <span>Filter:</span>
+  {% for c in ['all','loot','filament','ammo','other'] %}
+    <a href="/txns?cat={{ c }}" style="text-decoration:none;">
+      <span class="pill {% if c == current_cat %}loot{% else %}other{% endif %}">{{ c }}</span>
+    </a>
+  {% endfor %}
+</div>
+
+{% if not txns %}
+  <p>No transactions yet. Wallet polling runs every 5 minutes after login.</p>
+{% else %}
+<table>
+  <thead>
+    <tr>
+      <th>Date</th>
+      <th>Type</th>
+      <th>Qty</th>
+      <th>Unit</th>
+      <th>Total</th>
+      <th>Side</th>
+      <th>Category</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for t in txns %}
+    {% set eff = t.manual_category or t.auto_category or 'other' %}
+    <tr>
+      <td><script>document.write(new Date({{ t.date }} * 1000).toLocaleString());</script></td>
+      <td>{{ t.type_name or ('type ' ~ t.type_id) }}</td>
+      <td>{{ "{:,}".format(t.quantity) }}</td>
+      <td>{{ "{:,.2f}".format(t.unit_price) }}</td>
+      <td>{{ "{:,.0f}".format(t.quantity * t.unit_price) }}</td>
+      <td>{% if t.is_buy %}BUY{% else %}SELL{% endif %}</td>
+      <td>
+        <select data-txn="{{ t.transaction_id }}" onchange="setCat(this)">
+          {% for c in ['loot','filament','ammo','other'] %}
+            <option value="{{ c }}" {% if eff == c %}selected{% endif %}>{{ c }}</option>
+          {% endfor %}
+        </select>
+        {% if t.manual_category %}
+          <span class="pill loot" title="manually overridden">M</span>
+        {% endif %}
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+
+<script>
+async function setCat(sel) {
+  const id = sel.dataset.txn;
+  const cat = sel.value;
+  await fetch('/api/txn/' + id + '/category', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ category: cat })
+  });
+  const marker = sel.parentNode.querySelector('.pill');
+  if (!marker) {
+    const s = document.createElement('span');
+    s.className = 'pill loot';
+    s.title = 'manually overridden';
+    s.textContent = 'M';
+    sel.parentNode.appendChild(s);
+  }
+}
+</script>
+{% endif %}
+{% endblock %}

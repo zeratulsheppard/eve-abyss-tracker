@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Runs - Abyss Tracker{% endblock %}
+{% block content %}
+<h1>Runs</h1>
+
+{% if not runs %}
+  <p>No runs recorded yet. Enter an abyssal pocket to start one.</p>
+{% else %}
+<table>
+  <thead>
+    <tr>
+      <th>Started</th>
+      <th>System</th>
+      <th>Duration</th>
+      <th>Status</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for r in runs %}
+    <tr>
+      <td><script>document.write(new Date({{ r.started_at }} * 1000).toLocaleString());</script></td>
+      <td>{{ r.system_name or ('sys ' ~ r.system_id) }}</td>
+      <td>
+        {% if r.duration_s %}
+          {{ (r.duration_s // 60) }}m {{ (r.duration_s % 60) }}s
+        {% else %}
+          <span class="pill loot">running</span>
+        {% endif %}
+      </td>
+      <td>{% if r.ended_at %}closed{% else %}open{% endif %}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+{% endblock %}
