@@ -27,6 +27,8 @@
       <option value="90d">Last 90 days</option>
     </select>
     <button onclick="reclassifyAll()">Re-run auto classify</button>
+    <button onclick="refreshWallet(this)">Refresh wallet</button>
+    <span id="wallet-status" style="font-size: 12px; opacity: 0.7; margin-left: 8px;"></span>
   </div>
 
   <div class="grid" id="stats-grid">
@@ -120,6 +122,44 @@ async function reclassifyAll() {
   alert('Reclassified ' + j.count + ' transactions.');
   location.reload();
 }
+
+function fmtStatus(j) {
+  const el = document.getElementById('wallet-status');
+  if (!el) return;
+  const parts = [];
+  if (j.last_fetch_ts) {
+    const ago = Math.floor(Date.now() / 1000) - j.last_fetch_ts;
+    parts.push('last poll ' + (ago < 60 ? ago + 's' : Math.floor(ago / 60) + 'm') + ' ago');
+  }
+  if (j.esi_expires) {
+    const exp = new Date(j.esi_expires);
+    const secs = Math.floor((exp - Date.now()) / 1000);
+    if (secs > 0) {
+      parts.push('ESI cache: new data in ' + Math.floor(secs / 60) + 'm ' + (secs % 60) + 's');
+    } else {
+      parts.push('ESI cache: fresh data ready');
+    }
+  }
+  el.textContent = parts.join(' · ');
+}
+
+async function refreshWallet(btn) {
+  btn.disabled = true;
+  const r = await fetch('/api/wallet/refresh', { method: 'POST' });
+  const j = await r.json();
+  fmtStatus(j);
+  btn.disabled = false;
+  if (j.new_transactions > 0) {
+    loadStats(document.getElementById('window-select').value);
+  }
+}
+
+async function pollWalletStatus() {
+  const r = await fetch('/api/wallet/status');
+  fmtStatus(await r.json());
+}
+pollWalletStatus();
+setInterval(pollWalletStatus, 30000);
 
 // Live timer for in-abyss elapsed (reads the current data-started each tick so it
 // stays in sync with poll updates and blanks out when a run ends)

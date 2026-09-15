@@ -450,10 +450,14 @@ def poll_wallet_loop():
 def _fetch_and_store_transactions(char_id, token):
     r = esi_get(f"/characters/{char_id}/wallet/transactions/", token=token)
     if r.status_code != 200:
-        return
+        return 0
+    state_set("wallet_last_fetch_ts", int(time.time()))
+    exp = r.headers.get("Expires")
+    if exp:
+        state_set("wallet_expires_at", exp)
     rows = r.json() or []
     if not rows:
-        return
+        return 0
     conn = db_direct()
     try:
         existing = {r["transaction_id"] for r in conn.execute(
@@ -461,7 +465,7 @@ def _fetch_and_store_transactions(char_id, token):
         ).fetchall()}
         new_rows = [row for row in rows if row["transaction_id"] not in existing]
         if not new_rows:
-            return
+            return 0
         unknown_type_ids = list({int(row["type_id"]) for row in new_rows})
         cached_names = {r["type_id"]: r["type_name"] for r in conn.execute(
             f"SELECT type_id, type_name FROM type_name_cache WHERE type_id IN "
@@ -490,6 +494,7 @@ def _fetch_and_store_transactions(char_id, token):
             )
         conn.commit()
         app.logger.info("stored %d new transactions", len(new_rows))
+        return len(new_rows)
     finally:
         conn.close()
 
@@ -712,6 +717,28 @@ def api_txn_category(txn_id):
     finally:
         conn.close()
     return jsonify({"ok": True})
+
+
+@app.route("/api/wallet/refresh", methods=["POST"])
+def api_wallet_refresh():
+    token, char_id = get_valid_access_token()
+    if not token or not char_id:
+        return jsonify({"error": "not logged in"}), 401
+    n = _fetch_and_store_transactions(char_id, token)
+    return jsonify({
+        "ok": True,
+        "new_transactions": n,
+        "last_fetch_ts": int(state_get("wallet_last_fetch_ts") or 0),
+        "esi_expires": state_get("wallet_expires_at"),
+    })
+
+
+@app.route("/api/wallet/status")
+def api_wallet_status():
+    return jsonify({
+        "last_fetch_ts": int(state_get("wallet_last_fetch_ts") or 0),
+        "esi_expires": state_get("wallet_expires_at"),
+    })
 
 
 @app.route("/api/reclassify", methods=["POST"])
