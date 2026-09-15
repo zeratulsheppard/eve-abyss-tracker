@@ -67,7 +67,6 @@ EVE_SSO_TOKEN = "https://login.eveonline.com/v2/oauth/token"
 EVE_SCOPE = " ".join([
     "esi-location.read_location.v1",
     "esi-wallet.read_character_wallet.v1",
-    "esi-ui.write_waypoint.v1",
 ])
 
 LOCATION_POLL_S = 10
