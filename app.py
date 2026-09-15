@@ -654,9 +654,10 @@ def index():
 @app.route("/api/stats")
 def api_stats():
     window = request.args.get("window", "all")
-    windows = {"7d": 7, "30d": 30, "90d": 90, "all": None}
-    days = windows.get(window)
-    since = None if days is None else int(time.time()) - days * 86400
+    windows = {"24h": 3600 * 24, "7d": 86400 * 7, "30d": 86400 * 30,
+               "90d": 86400 * 90, "all": None}
+    span = windows.get(window)
+    since = None if span is None else int(time.time()) - span
     return jsonify(compute_stats(since))
 
 
