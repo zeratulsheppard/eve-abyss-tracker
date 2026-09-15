@@ -49,9 +49,13 @@
       <div class="value good" data-k="loot_revenue">{{ "{:,.0f}".format(stats.loot_revenue) }} ISK</div>
     </div>
     <div class="card">
-      <div class="label">Restock cost</div>
-      <div class="value bad" data-k="restock_cost">{{ "{:,.0f}".format(stats.restock_cost) }} ISK</div>
-      <div class="sub">filament {{ "{:,.0f}".format(stats.filament_cost) }} · ammo {{ "{:,.0f}".format(stats.ammo_cost) }}</div>
+      <div class="label">Total costs</div>
+      <div class="value bad" data-k="total_cost">{{ "{:,.0f}".format(stats.total_cost) }} ISK</div>
+      <div class="sub" data-k="cost_breakdown">
+        filament {{ "{:,.0f}".format(stats.filament_cost) }} ·
+        ammo {{ "{:,.0f}".format(stats.ammo_cost) }} ·
+        expense {{ "{:,.0f}".format(stats.expense_cost) }}
+      </div>
     </div>
     <div class="card">
       <div class="label">Net profit</div>
@@ -65,7 +69,7 @@
     </div>
     <div class="card">
       <div class="label">ROI</div>
-      {% set roi = (stats.loot_revenue / stats.restock_cost * 100) if stats.restock_cost > 0 else 0 %}
+      {% set roi = (stats.loot_revenue / stats.total_cost * 100) if stats.total_cost > 0 else 0 %}
       <div class="value" data-k="roi">{{ "{:,.1f}".format(roi) }}%</div>
     </div>
   </div>
@@ -91,10 +95,11 @@ async function loadStats(window) {
   set('total_time', humanTime(s.total_time_s));
   set('avg_run', humanMS(s.avg_run_s));
   set('loot_revenue', fmt(s.loot_revenue) + ' ISK');
-  set('restock_cost', fmt(s.restock_cost) + ' ISK');
+  set('total_cost', fmt(s.total_cost) + ' ISK');
+  set('cost_breakdown', 'filament ' + fmt(s.filament_cost) + ' · ammo ' + fmt(s.ammo_cost) + ' · expense ' + fmt(s.expense_cost));
   set('net_profit', fmt(s.net_profit) + ' ISK');
   set('isk_per_hr', fmt(s.isk_per_hr) + ' ISK/hr');
-  const roi = s.restock_cost > 0 ? (s.loot_revenue / s.restock_cost * 100) : 0;
+  const roi = s.total_cost > 0 ? (s.loot_revenue / s.total_cost * 100) : 0;
   set('roi', fmt(roi, 1) + '%');
 }
 document.getElementById('window-select').addEventListener('change', e => loadStats(e.target.value));

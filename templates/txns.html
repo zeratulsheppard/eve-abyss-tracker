@@ -5,7 +5,7 @@
 
 <div class="filter-bar">
   <span>Filter:</span>
-  {% for c in ['all','loot','filament','ammo','other'] %}
+  {% for c in ['all','loot','filament','ammo','expense','other'] %}
     <a href="/txns?cat={{ c }}" style="text-decoration:none;">
       <span class="pill {% if c == current_cat %}loot{% else %}other{% endif %}">{{ c }}</span>
     </a>
@@ -39,7 +39,7 @@
       <td>{% if t.is_buy %}BUY{% else %}SELL{% endif %}</td>
       <td>
         <select data-txn="{{ t.transaction_id }}" onchange="setCat(this)">
-          {% for c in ['loot','filament','ammo','other'] %}
+          {% for c in ['loot','filament','ammo','expense','other'] %}
             <option value="{{ c }}" {% if eff == c %}selected{% endif %}>{{ c }}</option>
           {% endfor %}
         </select>

@@ -517,7 +517,7 @@ def compute_stats(since_ts=None):
             params,
         ).fetchall()
 
-        loot_rev = filament_cost = ammo_cost = 0.0
+        loot_rev = filament_cost = ammo_cost = expense_cost = 0.0
         for row in agg:
             cat = row["cat"] or "other"
             is_buy = bool(row["is_buy"])
@@ -528,6 +528,8 @@ def compute_stats(since_ts=None):
                 filament_cost += gross
             elif cat == "ammo" and is_buy:
                 ammo_cost += gross
+            elif cat == "expense" and is_buy:
+                expense_cost += gross
 
         runs_where = "" if not since_ts else " WHERE started_at >= ?"
         runs_params = [] if not since_ts else [since_ts]
@@ -540,7 +542,7 @@ def compute_stats(since_ts=None):
         ).fetchone()
 
         total_s = int(run_stats["total_s"] or 0)
-        net = loot_rev - filament_cost - ammo_cost
+        net = loot_rev - filament_cost - ammo_cost - expense_cost
         isk_per_hr = (net * 3600.0 / total_s) if total_s > 0 else 0.0
 
         open_run = conn.execute(
@@ -560,7 +562,9 @@ def compute_stats(since_ts=None):
             "loot_revenue": loot_rev,
             "filament_cost": filament_cost,
             "ammo_cost": ammo_cost,
+            "expense_cost": expense_cost,
             "restock_cost": filament_cost + ammo_cost,
+            "total_cost": filament_cost + ammo_cost + expense_cost,
             "net_profit": net,
             "isk_per_hr": isk_per_hr,
             "current_run": current,
@@ -696,7 +700,7 @@ def txns():
 @app.route("/api/txn/<int:txn_id>/category", methods=["POST"])
 def api_txn_category(txn_id):
     new_cat = (request.json or {}).get("category", "").strip()
-    if new_cat not in ("loot", "filament", "ammo", "other", ""):
+    if new_cat not in ("loot", "filament", "ammo", "expense", "other", ""):
         return jsonify({"error": "bad category"}), 400
     conn = db_direct()
     try:
