@@ -30,7 +30,7 @@ FILAMENT_NAMES = [
 ]
 
 LOOT_NAME_SUFFIXES = ("Mutaplasmid",)
-LOOT_NAME_CONTAINS = ("Isogen-5",)
+LOOT_NAME_CONTAINS = ("Isogen-5", "Isogen-10")
 
 DEFAULT_AMMO_NAMES = [
     "Meson Exotic Plasma S",
